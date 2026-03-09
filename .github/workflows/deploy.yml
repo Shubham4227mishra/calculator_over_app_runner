@@ -1,4 +1,4 @@
-name: Deploy to AWS App Runner (OIDC)
+name: Deploy to AWS App Runner (OIDC) github actions
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY: apprunner
   APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-south-1:153191561265:service/apprunner/c6fa5c43979d4c72a1c27960a9b70f8c
-  IAM_ROLE_ARN: arn:aws:iam::153191561265:role/service-role/AppRunnerECRAccessRole
+  IAM_ROLE_ARN: arn:aws:iam::153191561265:role/github_oidc
 
 
 jobs:
