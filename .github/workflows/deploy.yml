@@ -1,0 +1,60 @@
+name: Deploy to AWS App Runner (OIDC)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: apprunner
+  APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-south-1:153191561265:service/apprunner/c6fa5c43979d4c72a1c27960a9b70f8c
+  IAM_ROLE_ARN: arn:aws:iam::153191561265:role/service-role/AppRunnerECRAccessRole
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.IAM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+      - name: Deploy to App Runner
+        run: |
+          aws apprunner update-service \
+            --service-arn $APP_RUNNER_SERVICE_ARN \
+            --source-configuration "{
+              \"ImageRepository\": {
+                \"ImageIdentifier\": \"${{ steps.build-image.outputs.IMAGE_URI }}\",
+                \"ImageRepositoryType\": \"ECR\",
+                \"ImageConfiguration\": { \"Port\": \"8080\" }
+              }
+            }"
